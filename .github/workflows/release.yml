@@ -26,7 +26,7 @@ jobs:
     - name: Use pyinstall to create distribution binary
       run: pyinstaller -F support_bundle_bootstrap.py
     - name: version
-      run: echo "::set-output name=version::$(./dist/support_bundle -v)"
+      run: echo "version=$(./dist/support_bundle -v)" >> $GITHUB_ENV
       id: version
       
     - name: Tar bootstrap
