@@ -10,7 +10,7 @@ NetFoundry support bundle
 
 The main script should be created locally & checked into the source repository.
 
-To creat the package with pyinstaller you need to pass in a `--runtime-hook` to setup the os.eviron variables.
+To create the package with pyinstaller you need to pass in a `--runtime-hook` to setup the os.eviron variables.
 
 Example, create a file called local_build.py
 ```
