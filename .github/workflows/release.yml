@@ -40,8 +40,8 @@ jobs:
       with:
         draft: false
         prerelease: false
-        release_name: v${{ steps.version.outputs.version }}
-        tag_name: v${{ steps.version.outputs.version }}
+        release_name: v${{ env.version }}
+        tag_name: v${{ env.version }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
 
