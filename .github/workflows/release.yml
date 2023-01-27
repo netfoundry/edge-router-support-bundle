@@ -31,7 +31,7 @@ jobs:
       
     - name: Tar bootstrap
       # tar with previous distibuted name for backwards compatibility
-      run: cd dist; mv support_bundle_bootstap vm-support-bundle; tar -zcvf support_bundle_bootstrap.tar.gz vm-support-bundle
+      run: cd dist; mv support_bundle_bootstrap vm-support-bundle; tar -zcvf support_bundle_bootstrap.tar.gz vm-support-bundle
     - name: release
       uses: actions/create-release@v1
       id: release
