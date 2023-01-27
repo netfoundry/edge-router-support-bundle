@@ -643,33 +643,6 @@ def main():
     """
     Main logic
     """
-    __version__ = '1.1.0'
-    # change log
-    # 1.0.0 - initial release
-    # 1.1.0 - add cpu dump
-
-    # argument parser
-    parser = argparse.ArgumentParser()
-    # arguments
-    parser.add_argument('-t', '--ticket_number',
-                        help='support ticket number')
-    parser.add_argument('-e', '--email_address',
-                        help='email address')
-    parser.add_argument('-n','--dump_count',
-                        help='number of times to perform dumps',
-                        default=1, type=int)
-    parser.add_argument('-u', '--upload',
-                        action='store_true',
-                        help='auto upload')
-    parser.add_argument('-d', '--debug',
-                        action='store_true',
-                        help='enable debug log in log file output')
-    parser.add_argument('-v', '--version',
-                        action='version',
-                        version=__version__)
-
-    # get arguments passed
-    args = parser.parse_args()
 
     # enable debug if requested
     if args.debug:
@@ -682,6 +655,7 @@ def main():
                         datefmt='%Y-%m-%d-%H:%M:%S',
                         level=log_level
                         )
+
 
     print("Starting Support Bundle Creation")
 
@@ -745,8 +719,37 @@ def main():
 # main
 if __name__ == '__main__':
     try:
+        __version__ = '1.1.0'
+        # change log
+        # 1.0.0 - initial release
+        # 1.1.0 - add cpu dump
+
+        # argument parser
+        parser = argparse.ArgumentParser()
+        # arguments
+        parser.add_argument('-t', '--ticket_number',
+                            help='support ticket number')
+        parser.add_argument('-e', '--email_address',
+                            help='email address')
+        parser.add_argument('-n','--dump_count',
+                            help='number of times to perform dumps',
+                            default=1, type=int)
+        parser.add_argument('-u', '--upload',
+                            action='store_true',
+                            help='auto upload')
+        parser.add_argument('-d', '--debug',
+                            action='store_true',
+                            help='enable debug log in log file output')
+        parser.add_argument('-v', '--version',
+                            action='version',
+                            version=__version__)
+
+        # get arguments passed
+        args = parser.parse_args()
+
         # root check
         root_check()
+
         # create temp dir to gather all logs
         tmp_dir_path = tempfile.mkdtemp(prefix="/root/")
         main()
