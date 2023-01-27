@@ -10,15 +10,18 @@ NetFoundry support bundle
 
 The main script should be created locally & checked into the source repository.
 
-The create the distribution package
+To creat the package with pyinstaller you need to pass in a `--runtime-hook` to setup the os.eviron variables.
 
-Export the correct values:
-* AWS_BUCKET_NAME
-* AWS_ACCESS_KEY_ID
-* AWS_SECRET_ACCESS_KEY
-
+Example, create a file called local_build.py
+```
+import os
+os.environ['AWS_BUCKET_NAME'] = <your bucket name>
+os.environ['AWS_ACCESS_KEY_ID'] = <your key id>
+os.environ['AWS_SECRET_ACCESS_KEY'] = <your secret>
+```
+Then you can build:
 ```
 pip install -r requirements
-pyinstaller -F support_bundle.py
+pyinstaller -F support_bundle.py --runtime-hook local_build.py
 ```
 
