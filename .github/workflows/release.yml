@@ -29,9 +29,10 @@ jobs:
       run: echo "::set-output name=version::$(./dist/support_bundle -v)"
       id: version
       
-    - name: Tar & gzip files
+    - name: Tar bootstrap
       # tar with previous distibuted name for backwards compatibility
       run: cd dist; mv support_bundle_bootstrap vm-support-bundle; tar -zcvf support_bundle_bootstrap.tar.gz vm-support-bundle
+    - name: Tar main script  
       run: cd dist; tar cfvz support_bundle.tar.gz support_bundle
     - name: release
       uses: actions/create-release@v1
