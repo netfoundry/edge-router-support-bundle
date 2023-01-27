@@ -2,3 +2,5 @@ pylint
 pyinstaller
 requests
 tqdm
+boto3
+psutil
