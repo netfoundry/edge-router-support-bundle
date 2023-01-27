@@ -24,7 +24,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Use pyinstall to create distribution binary
-      run: pyinstaller -F support_bundle.py
+      run: pyinstaller -F support_bundle_bootstrap.py
     - name: version
       run: echo "::set-output name=version::$(echo 1.0.0)"
       id: version
