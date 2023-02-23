@@ -41,57 +41,55 @@ def bytes2human(number_of_bytes):
 
 def create_info_file(tmp_dir, email_address):
     """
-    Creates a info file with information that can be used to identify the local machine
+    Creates an info file with information that can be used to identify the local machine
     """
-    info_items = {}
-    info_items["email_address"] = email_address
+    info_items = {"email_address": email_address}
+    info_items["network_version"] = "7"
+    node_type_map = {
+        "/opt/netfoundry/ziti/ziti-controller/ziti-controller": "NC",
+        "/opt/netfoundry/ziti/ziti-router/config.yml": "ER",
+    }
 
-    print("Attempting to identify system...")
-    if os.path.exists('/opt/netfoundry/ziti/ziti-router/config.yml'):
-        info_items["network_version"] = "7"
-        logging.debug("Network Version: 7")
-    elif os.path.exists('/opt/netfoundry/ziti/ziti-tunnel/config.json'):
-        info_items["network_version"] = "7"
-        logging.debug("Network Version: 7")
-    else:
-        info_items["network_version"] = "6"
-        logging.debug("Network Version: 6")
+    logging.debug("Attempting to identify system...")
 
-    if os.path.exists('/opt/netfoundry/ziti/ziti-controller/ziti-controller'):
-        node_type = "NC"
-        info_items["node_type"] = node_type
-    elif os.path.exists('/opt/dispersive/dps/running/bin/dps/dps_config.json'):
-        node_type = "NC"
-        info_items["node_type"] = node_type
-    elif os.path.exists('/opt/netfoundry/ziti/ziti-router/config.yml'):
-        node_type = "ER"
-        info_items["node_type"] = node_type
-    elif os.path.exists('/opt/dispersive/dvn/running/bin/vtc_app/vtc_local.json'):
-        node_type = "GW"
-        info_items["node_type"] = node_type
-    logging.debug("Node Type: %s", node_type)
+    for file_path, node_type in node_type_map.items():
+        if os.path.exists(file_path):
+            info_items["node_type"] = node_type
+            logging.debug("Node Type: %s", node_type)
+            break
 
+    if "node_type" not in info_items:
+        logging.warning("Failed to identify node type")
 
     try:
         host_id = extract_minion_id('/etc/salt/minion.d/nf-minion.conf')
-        info_items["host_id"] = host_id
     except FileNotFoundError:
+        host_id = None
         logging.debug("Minion file not found")
-    try:
-        host_id = extract_minion_id('/etc/salt/minion.d/nf_minion.conf')
+
+    if not host_id:
+        try:
+            host_id = extract_minion_id('/etc/salt/minion.d/nf_minion.conf')
+        except FileNotFoundError:
+            logging.debug("Minion file not found")
+
+    if host_id:
         info_items["host_id"] = host_id
-    except FileNotFoundError:
-        logging.debug("Minion file not found")
+
     try:
         controller_ip = extract_tunnel_controller_ip('/opt/netfoundry/ziti/ziti-tunnel/config.json')
-        info_items["controller_ip"] = controller_ip
     except FileNotFoundError:
         logging.debug("Tunnel Config not found")
+    else:
+        info_items["controller_ip"] = controller_ip
+
     try:
         controller_ip = extract_router_controller_ip('/opt/netfoundry/ziti/ziti-router/config.yml')
-        info_items["controller_ip"] = controller_ip
     except FileNotFoundError:
         logging.debug("Router Config not found")
+    else:
+        info_items["controller_ip"] = controller_ip
+
     try:
         controller_advertise_value = extract_controller_info('/opt/netfoundry/ziti/ziti-controller/conf/controller01.config.yml')
         if ip_check(controller_advertise_value):
@@ -101,13 +99,12 @@ def create_info_file(tmp_dir, email_address):
     except FileNotFoundError:
         logging.debug("Controller Conf not found")
 
-
-    info_file_path = tmp_dir + "/info_file.json"
-    with open(info_file_path, 'w') as file:
+    info_file_path = os.path.join(tmp_dir, "info_file.json")
+    with open(info_file_path, "w") as file:
         json_data = json.dumps(info_items)
         file.write(json_data)
 
-    return [info_file_path], node_type
+    return [info_file_path], info_items.get("node_type")
 
 def create_dump_file(tmp_dir, process_name, dump_type):
     """
@@ -131,7 +128,7 @@ def create_dump_file(tmp_dir, process_name, dump_type):
     if dump_type == 'heap':
         signal = '05'
     if dump_type == 'cpu':
-        signal = '06'    
+        signal = '06'
 
     file_path = (tmp_dir +
                 "/" +
@@ -272,24 +269,24 @@ def get_system_info(tmp_dir):
     # return a list of files
     return list_of_system_files
 
-def get_system_pid(process_name):
+def get_system_pid(command_argument):
     """
-    Attempt to find the pid of a running process
+    Find the PID of a running process that contains the given command argument in its command line.
     """
-    try:
-        process_id = subprocess.check_output(["pidof",process_name]).strip().decode('ascii')
-        return process_id
-
-    except subprocess.SubprocessError:
-        logging.debug("Unable to find process")
-        return 0
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        cmdline = proc.info['cmdline']
+        if cmdline and command_argument in ' '.join(cmdline):
+            logging.debug("PID: %s, Name: %s", proc.info['pid'], proc.info['name'])
+            return proc.info['pid']
+    logging.debug("Unable to find process")
+    return None
 
 def get_ziti_dumps(tmp_dir,dump_count):
     """
     Gather ziti dump files for any all ziti processes
     """
     print("Creating ziti dump files...")
-    ziti_proccess_list = ["ziti-controller", "ziti-router", "ziti-tunnel"]
+    ziti_proccess_list = ["controller", "router", "tunnel"]
     dump_files = []
     do_sleep = False
     if dump_count > 1:
@@ -719,10 +716,11 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.1.0'
+        __version__ = '1.2.0'
         # change log
         # 1.0.0 - initial release
         # 1.1.0 - add cpu dump
+        # 1.2.0 - change process lookup; clean up info file function
 
         # argument parser
         parser = argparse.ArgumentParser()
