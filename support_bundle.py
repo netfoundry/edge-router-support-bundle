@@ -716,10 +716,11 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.1.0'
+        __version__ = '1.2.0'
         # change log
         # 1.0.0 - initial release
         # 1.1.0 - add cpu dump
+        # 1.2.0 - change process lookup; clean up info file function
 
         # argument parser
         parser = argparse.ArgumentParser()
