@@ -276,9 +276,9 @@ def get_system_pid(command_argument):
     for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
         cmdline = proc.info['cmdline']
         if cmdline and command_argument in ' '.join(cmdline):
-            #logging.debug("PID: %s, Name: %s", proc.info['pid'], proc.info['name'])
+            logging.debug("PID: %s, Name: %s", proc.info['pid'], proc.info['name'])
             return proc.info['pid']
-    #logging.debug("Unable to find process")
+    logging.debug("Unable to find process")
     return None
 
 def get_ziti_dumps(tmp_dir,dump_count):
