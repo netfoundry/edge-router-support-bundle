@@ -128,7 +128,7 @@ def create_dump_file(tmp_dir, process_name, dump_type):
     if dump_type == 'heap':
         signal = '05'
     if dump_type == 'cpu':
-        signal = '06'    
+        signal = '06'
 
     file_path = (tmp_dir +
                 "/" +
