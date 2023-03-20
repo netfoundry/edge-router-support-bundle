@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [1.2.1] - 2023-03-20
 ### Changed:
 
-    - Fixed bug int info file function
+    - Fixed bug in info file function
 
 ## [1.2.0] - 2023-02-23
 ### Changed:
@@ -14,7 +14,8 @@ All notable changes to this project will be documented in this file. The format 
     - Clean up info file function
 
 ## [1.1.0] - 2023-01-27
-### Added: 
+### Added:
+
     - CPU dumps 
  
 
