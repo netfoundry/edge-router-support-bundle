@@ -46,14 +46,14 @@ def create_info_file(tmp_dir, email_address):
     info_items = {"email_address": email_address}
     info_items["network_version"] = "7"
     node_type_map = {
-        "/opt/netfoundry/ziti/ziti-controller/ziti-controller": "NC",
-        "/opt/netfoundry/ziti/ziti-router/config.yml": "ER",
+        "/opt/netfoundry/ziti/ziti-controller": "NC",
+        "/opt/netfoundry/ziti/ziti-router": "ER",
     }
 
     logging.debug("Attempting to identify system...")
 
     for file_path, node_type in node_type_map.items():
-        if os.path.exists(file_path):
+        if os.path.isdir(file_path):
             info_items["node_type"] = node_type
             logging.debug("Node Type: %s", node_type)
             break
@@ -716,11 +716,9 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.2.0'
+        __version__ = '1.2.1'
         # change log
-        # 1.0.0 - initial release
-        # 1.1.0 - add cpu dump
-        # 1.2.0 - change process lookup; clean up info file function
+        # https://github.com/netfoundry/edge-router-support-bundle/blob/main/CHANGELOG.md
 
         # argument parser
         parser = argparse.ArgumentParser()

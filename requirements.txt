@@ -1,4 +1,5 @@
 pylint
+Pyaml
 pyinstaller
 requests
 tqdm
