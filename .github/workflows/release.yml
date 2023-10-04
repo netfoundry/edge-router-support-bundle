@@ -24,7 +24,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Use pyinstall to create distribution binary
-      run: pyinstaller -F support_bundle_bootstrap.py --runtime-tmpdir /opt/netfoundry/
+      run: mkdir /opt/netfoundry; pyinstaller -F support_bundle_bootstrap.py --runtime-tmpdir /opt/netfoundry/
     - name: version
       run: echo "version=$(./dist/support_bundle -v)" >> $GITHUB_ENV
       id: version
