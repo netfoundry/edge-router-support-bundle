@@ -716,7 +716,7 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.2.1'
+        __version__ = '1.3.0'
         # change log
         # https://github.com/netfoundry/edge-router-support-bundle/blob/main/CHANGELOG.md
 
