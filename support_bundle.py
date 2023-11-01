@@ -322,7 +322,7 @@ def get_ziti_info(tmp_dir):
 
     ziti_files = []
     # gather journal for ziti-router/tunnel
-    for program in ['ziti-router','ziti-tunnel','ziti-controller']:
+    for program in ['ziti-router','ziti-tunnel','ziti-controller','salt-minion']:
         log_file = tmp_dir + "/" + program + ".log"
         open_file = open(log_file,'w')
         subprocess.call(["journalctl", "-u", program,
@@ -716,7 +716,7 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.3.0'
+        __version__ = '1.3.1'
         # change log
         # https://github.com/netfoundry/edge-router-support-bundle/blob/main/CHANGELOG.md
 
