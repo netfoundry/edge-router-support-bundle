@@ -338,7 +338,8 @@ def get_ziti_info(tmp_dir):
                         '/opt/netfoundry/ziti/ziti-controller/conf/controller01.config.yml',
                         '/etc/systemd/system/ziti-controller.service',
                         '/usr/lib/systemd/resolved.conf.d/01-netfoundry.conf',
-                        '/etc/salt/minion.d/nf-minion.conf'
+                        '/etc/salt/minion.d/nf-minion.conf',
+                        '/home/ziggy/router_registration.log'
                         ]
     for ziti_file in other_ziti_files:
         try:
@@ -716,7 +717,7 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.3.1'
+        __version__ = '1.3.2'
         # change log
         # https://github.com/netfoundry/edge-router-support-bundle/blob/main/CHANGELOG.md
 
