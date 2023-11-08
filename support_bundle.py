@@ -748,7 +748,7 @@ if __name__ == '__main__':
         root_check()
 
         # create temp dir to gather all logs
-        tmp_dir_path = tepmpfile.mkdtemp(prefix="/root/nf-")
+        tmp_dir_path = tempfile.mkdtemp(prefix="/root/nf-")
         main()
     except KeyboardInterrupt:
         exit_gracefully(tmp_dir_path)
