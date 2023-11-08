@@ -717,7 +717,7 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.3.2'
+        __version__ = '1.3.3'
         # change log
         # https://github.com/netfoundry/edge-router-support-bundle/blob/main/CHANGELOG.md
 
@@ -748,7 +748,7 @@ if __name__ == '__main__':
         root_check()
 
         # create temp dir to gather all logs
-        tmp_dir_path = tempfile.mkdtemp(prefix="/root/")
+        tmp_dir_path = tepmpfile.mkdtemp(prefix="/root/nf-")
         main()
     except KeyboardInterrupt:
         exit_gracefully(tmp_dir_path)
