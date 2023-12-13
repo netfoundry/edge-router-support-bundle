@@ -19,88 +19,49 @@ import tempfile
 import zipfile
 import logging
 import json
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.x509.oid import NameOID
 import yaml
 import boto3
 import botocore
 import psutil
 
 
-def bytes2human(number_of_bytes):
+def bytes2human(n):
     """
-    Convert bytes to human readable
+    Convert bytes to human-readable format
     """
     symbols = ('K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y')
     prefix = {}
-    for i, symbol in enumerate(symbols):
-        prefix[symbol] = 1 << (i + 1) * 10
-    for symbol in reversed(symbols):
-        if number_of_bytes >= prefix[symbol]:
-            value = float(number_of_bytes) / prefix[symbol]
-            return '%.1f%s' % (value, symbol)
-    return "%sB" % number_of_bytes
+    for i, s in enumerate(symbols, 1):
+        prefix[s] = 1024 ** i
+    for s in reversed(symbols):
+        if n >= prefix[s]:
+            value = n / prefix[s]
+            return f"{value:.2f} {s}B"
+    return f"{n} B"
 
-def create_info_file(tmp_dir, email_address):
+def create_system_info_file(tmp_dir, email_address):
     """
-    Creates an info file with information that can be used to identify the local machine
+    Creates an info file local system information &
+    items that can be used to identify the local machine
     """
-    info_items = {"email_address": email_address}
-    info_items["network_version"] = "7"
-    node_type_map = {
-        "/opt/netfoundry/ziti/ziti-controller": "NC",
-        "/opt/netfoundry/ziti/ziti-router": "ER",
-    }
 
-    logging.debug("Attempting to identify system...")
+    # run system info
+    system_info = get_system_info()
 
-    for file_path, node_type in node_type_map.items():
-        if os.path.isdir(file_path):
-            info_items["node_type"] = node_type
-            logging.debug("Node Type: %s", node_type)
-            break
+    # attempt to identify system
+    print("Attempting to identify system...")
 
-    if "node_type" not in info_items:
-        logging.warning("Failed to identify node type")
+    identiy_info = run_identify()
 
-    try:
-        host_id = extract_minion_id('/etc/salt/minion.d/nf-minion.conf')
-    except FileNotFoundError:
-        host_id = None
-        logging.debug("Minion file not found")
-
-    if not host_id:
-        try:
-            host_id = extract_minion_id('/etc/salt/minion.d/nf_minion.conf')
-        except FileNotFoundError:
-            logging.debug("Minion file not found")
-
-    if host_id:
-        info_items["host_id"] = host_id
-
-    try:
-        controller_ip = extract_tunnel_controller_ip('/opt/netfoundry/ziti/ziti-tunnel/config.json')
-    except FileNotFoundError:
-        logging.debug("Tunnel Config not found")
-    else:
-        info_items["controller_ip"] = controller_ip
-
-    try:
-        controller_ip = extract_router_controller_ip('/opt/netfoundry/ziti/ziti-router/config.yml')
-    except FileNotFoundError:
-        logging.debug("Router Config not found")
-    else:
-        info_items["controller_ip"] = controller_ip
-
-    try:
-        controller_advertise_value = extract_controller_info('/opt/netfoundry/ziti/ziti-controller/conf/controller01.config.yml')
-        if ip_check(controller_advertise_value):
-            info_items["controller_dns"] = controller_advertise_value
-        else:
-            info_items["controller_ip"] = controller_advertise_value
-    except FileNotFoundError:
-        logging.debug("Controller Conf not found")
+    info_items = {**system_info, **identiy_info}
+    # add email address to the info file
+    info_items["email_address"] = email_address
 
     info_file_path = os.path.join(tmp_dir, "info_file.json")
-    with open(info_file_path, "w") as file:
+    with open(info_file_path, "w", encoding='utf-8') as file:
         json_data = json.dumps(info_items)
         file.write(json_data)
 
@@ -143,7 +104,7 @@ def create_dump_file(tmp_dir, process_name, dump_type):
         if dump_type in ["heap", "cpu"]:
             file =  open(file_path,'wb')
         else:
-            file =  open(file_path,'w')
+            file =  open(file_path,'w', encoding='utf-8')
     except OSError:
         print("Unable to create dump file")
 
@@ -180,12 +141,26 @@ def exit_gracefully(tmp_dir):
     print('\nGood by.')
     sys.exit(0)
 
+def extract_common_name(cert_file_path):
+    """
+    Extract the CN from a give certificate file
+    """
+    with open(cert_file_path, 'rb') as cert_file:
+        cert_data = cert_file.read()
+    try:
+        loaded_cert = x509.load_pem_x509_certificate(cert_data, default_backend())
+        common_name = loaded_cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+        return common_name
+    except OSError as error:
+        print(f"Error loading certificate: {error}")
+        return None
+
 def extract_controller_info(config):
     """
     Get the controller info from the config
     """
     logging.debug("Trying to open yaml config")
-    with open(config, "r") as file:
+    with open(config, "r", encoding='utf-8') as file:
         try:
             yaml_content = yaml.load(file, Loader=yaml.FullLoader)
             if 'web' in yaml_content.keys():
@@ -202,7 +177,7 @@ def extract_minion_id(config):
     Get id from yaml configuration
     """
     logging.debug("Trying to open yaml config")
-    with open(config, "r") as file:
+    with open(config, "r", encoding='utf-8') as file:
         try:
             yaml_content = yaml.load(file, Loader=yaml.FullLoader)
             minion_id = yaml_content["id"]
@@ -217,7 +192,7 @@ def extract_router_controller_ip(config):
     Get the controller ip from the config
     """
     logging.debug("Trying to open yaml config")
-    with open(config, "r") as file:
+    with open(config, "r", encoding='utf-8') as file:
         try:
             yaml_content = yaml.load(file, Loader=yaml.FullLoader)
             controller_info = yaml_content["ctrl"]["endpoint"]
@@ -233,7 +208,7 @@ def extract_tunnel_controller_ip(config):
     Get the controller ip from the config
     """
     logging.debug("Trying to open yaml config")
-    with open(config, "r") as file:
+    with open(config, "r", encoding='utf-8') as file:
         try:
             json_content = json.loads(file.read())
             controller_info = json_content["ztAPI"]
@@ -244,7 +219,7 @@ def extract_tunnel_controller_ip(config):
 
     return controller_ip
 
-def get_system_info(tmp_dir):
+def get_system_files(tmp_dir):
     """
     Gather all information/logs from local system and return a list of files
     """
@@ -255,10 +230,6 @@ def get_system_info(tmp_dir):
                             '/var/log/auth.log',
                             '/etc/resolv.conf',
                             '/etc/systemd/resolved.conf']
-
-    # run system info
-    sysinfo_file = system_info(tmp_dir)
-    list_of_system_files.append(sysinfo_file)
 
     # run system commands
     system_command_output_files = run_system_commands(tmp_dir)
@@ -324,7 +295,7 @@ def get_ziti_info(tmp_dir):
     # gather journal for ziti-router/tunnel
     for program in ['ziti-router','ziti-tunnel','ziti-controller','salt-minion']:
         log_file = tmp_dir + "/" + program + ".log"
-        open_file = open(log_file,'w')
+        open_file = open(log_file,'w', encoding='utf-8')
         subprocess.call(["journalctl", "-u", program,
                 "--since","3 days ago",
                 "--no-pager"  ], stdout=open_file)
@@ -340,7 +311,7 @@ def get_ziti_info(tmp_dir):
                         '/usr/lib/systemd/resolved.conf.d/01-netfoundry.conf',
                         '/usr/lib/systemd/resolved.conf.d/01-ziti.conf',
                         '/etc/salt/minion.d/nf-minion.conf',
-                        '/home/ziggy/router_registration.log'
+                        '/var/log/router_registration.log'
                         ]
     for ziti_file in other_ziti_files:
         try:
@@ -353,11 +324,12 @@ def get_ziti_info(tmp_dir):
 
 def ip_check(value):
     """
-    Check if the value is an ip address, if not assume it's a name
+    Check if the value is an IP address; assume it's a name if not.
     """
-    if re.match(r"^(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)$", value):
-        return True
-    return False
+    return bool(re.match(r"^(25[0-5]|2[0-4]\d|[0-1]?\d{1,2})\."
+                        r"(25[0-5]|2[0-4]\d|[0-1]?\d{1,2})\."
+                        r"(25[0-5]|2[0-4]\d|[0-1]?\d{1,2})\."
+                        r"(25[0-5]|2[0-4]\d|[0-1]?\d{1,2})$", value))
 
 def prompt_for_email():
     """
@@ -399,6 +371,74 @@ def run_cleanup(path):
     except FileNotFoundError:
         print("no files to clean")
 
+def run_identify():
+    """
+    Attempt to gather information that can be used to lookup resource in MOP
+    """
+    identity_info = {}
+
+    # identify node type
+    node_type_map = {
+        "/opt/netfoundry/ziti/ziti-controller": "NC",
+        "/opt/netfoundry/ziti/ziti-router": "ER",
+    }
+
+    for file_path, node_type in node_type_map.items():
+        if os.path.isdir(file_path):
+            identity_info["node_type"] = node_type
+            logging.debug("Node Type: %s", node_type)
+            break
+
+    if "node_type" not in identity_info:
+        logging.warning("Failed to identify node type")
+
+    # identify host id
+    minion_files = ['/etc/salt/minion.d/nf-minion.conf',
+                    '/etc/salt/minion.d/nf_minion.conf']
+
+    for file in minion_files:
+        if os.path.exists(file):
+            host_id = extract_minion_id(file)
+
+    if host_id:
+        identity_info["host_id"] = host_id
+    else:
+        logging.debug("Minion file not found")
+
+    # identify controller name or IP
+    try:
+        controller_ip = extract_tunnel_controller_ip('/opt/netfoundry/ziti/ziti-tunnel/config.json')
+    except FileNotFoundError:
+        logging.debug("Tunnel Config not found")
+    else:
+        identity_info["controller_ip"] = controller_ip
+
+    try:
+        controller_ip = extract_router_controller_ip('/opt/netfoundry/ziti/ziti-router/config.yml')
+    except FileNotFoundError:
+        logging.debug("Router Config not found")
+    else:
+        identity_info["controller_ip"] = controller_ip
+
+    try:
+        controller_advertise_value = extract_controller_info('/opt/netfoundry/ziti/ziti-controller'
+                                                             '/conf/controller01.config.yml')
+        if ip_check(controller_advertise_value):
+            identity_info["controller_dns"] = controller_advertise_value
+        else:
+            identity_info["controller_ip"] = controller_advertise_value
+    except FileNotFoundError:
+        logging.debug("Controller Config not found")
+
+    # identity Router id from certificate
+    router_certificate = "/opt/netfoundry/ziti/ziti-router/certs/client.cert.pem"
+    if os.path.exists(router_certificate):
+        ziti_router_id = extract_common_name(router_certificate)
+        identity_info['ziti_router_id'] = ziti_router_id
+        logging.debug("ZitiRouterId: %s", ziti_router_id)
+
+    return identity_info
+
 def root_check():
     """
     Check to see if this is running as root
@@ -438,7 +478,7 @@ def run_system_commands(output_dir):
 
         output_file = output_dir + "/" + primary_command + ".log"
         if shutil.which(primary_command):
-            with open(output_file, "a+") as open_file:
+            with open(output_file, "a+", encoding='utf-8') as open_file:
                 open_file.write("="*80 + "\n")
                 open_file.write("CommandRun:" + str(command) + "\n")
                 subprocess.call(command, stdout=open_file, stderr=open_file)
@@ -449,107 +489,71 @@ def run_system_commands(output_dir):
             logging.debug("Command not found: %s", primary_command)
     return output_file_list
 
-def system_info(base_path):
+def get_system_info():
     """
     Gather local system information
     """
     print("Gathering system information...")
 
-    sysinfo_tmp_file = base_path + "/netfoundry_sysinfo.txt"
-    # Open a file to print this information
-    sysinfo_file = open(sysinfo_tmp_file, 'w')
+    system_info = {
+        "date_created": datetime.utcnow().strftime("%a %Y-%m-%d %H:%M:%S UTC"),
+        "network_version": "7",
+        "system": {},
+        "disk": {},
+        "network": {}
+    }
 
-    # uname information
-    try:
-        uname = platform.uname()
-        sysinfo_file.write("="*40 + "System Information" + "="*31 + '\n')
-        sysinfo_file.write("System: " + uname.system)
-        sysinfo_file.write("Node Name: " + uname.node + "\n")
-        sysinfo_file.write("Release: " + uname.release + "\n")
-        sysinfo_file.write("Version: " + uname.version + "\n")
-        sysinfo_file.write("Machine: " + uname.machine + "\n")
-        sysinfo_file.write("Processor: " + uname.processor + "\n")
-    except OSError:
-        print("Unable to find uname")
+    # System Information
+    uname = platform.uname()
+    system_info["system"]["os"] = f"Linux {uname.system} {uname.release} {uname.version}"
 
-    # Boot Time
-    try:
-        boot_time_timestamp = psutil.boot_time()
-        b_time = datetime.fromtimestamp(boot_time_timestamp)
-        sysinfo_file.write("="*40 + "Boot Time" + "="*40 + '\n')
-        sysinfo_file.write("Boot Time: " +
-                           str(b_time.year) + "/" +
-                           str(b_time.month) + "/" +
-                           str(b_time.day) + " " +
-                           str(b_time.hour) + ":"  +
-                           str(b_time.minute) + ":"  +
-                           str(b_time.second) + "\n")
-    except OSError:
-        print("unable to find boot time")
+    boot_time = datetime.fromtimestamp(psutil.boot_time())
+    uptime = datetime.utcnow() - boot_time
+    system_info["system"]["up_time"] = {
+        "boot_time": boot_time.strftime('%Y/%m/%d %H:%M:%S'),
+        "uptime": str(uptime)
+    }
 
-    # let's print CPU information
-    sysinfo_file.write("="*40 + "CPU Info" + "="*41 + '\n')
-    # number of cores
-    sysinfo_file.write("Physical cores: " + str(psutil.cpu_count(logical=False)) + "\n")
-    sysinfo_file.write("Total cores: " + str(psutil.cpu_count(logical=True)) + "\n")
-    # CPU frequencies
-    # CPU usage
-    sysinfo_file.write("CPU Usage Per Core:\n")
-    for i, percentage in enumerate(psutil.cpu_percent(percpu=True, interval=1)):
-        sysinfo_file.write("Core" +  str(i) + ":" + str(percentage) + "%\n")
-    sysinfo_file.write("Total CPU Usage: " + str(psutil.cpu_percent()) + "%\n")
-
-    # Memory Information
-    sysinfo_file.write("="*40 + "Memory Information" + "="*31 + '\n')
-    # get the memory details
-    svmem = psutil.virtual_memory()
-    sysinfo_file.write("Total: " + bytes2human(svmem.total) + "\n")
-    sysinfo_file.write("Available: " + bytes2human(svmem.available) + "\n")
-    sysinfo_file.write("Used: " + bytes2human(svmem.used) + "\n")
-    sysinfo_file.write("Percentage: " + str(svmem.percent) + "%\n")
+    system_info["system"]["load_average"] = psutil.getloadavg()
+    system_info["system"]["cpu_physical_cores"] = psutil.cpu_count(logical=False)
+    system_info["system"]["cpu_total_cores"] = psutil.cpu_count(logical=True)
+    system_info["system"]["cpu_usage"] = psutil.cpu_percent()
+    system_info["system"]["ram"] = {
+        "total": bytes2human(psutil.virtual_memory().total),
+        "avail": bytes2human(psutil.virtual_memory().available),
+        "used": bytes2human(psutil.virtual_memory().used),
+        "percent": psutil.virtual_memory().percent
+    }
 
     # Disk Information
-    sysinfo_file.write("="*40 + "Disk Information" + "="*33 + '\n')
-    sysinfo_file.write("Partitions and Usage:\n")
-    # get all disk partitions
+    system_info["disk"]["partitions"] = []
     partitions = psutil.disk_partitions()
     for partition in partitions:
         if not re.search('/snap', partition.mountpoint):
-            sysinfo_file.write("=== Device: " + partition.device + "===\n")
-            sysinfo_file.write("  Mountpoint: " + partition.mountpoint + "\n")
-            sysinfo_file.write("  File system type: " + partition.fstype + "\n")
-            try:
-                partition_usage = psutil.disk_usage(partition.mountpoint)
-            except PermissionError:
-            # this can be catched due to the disk that
-            # isn't ready
-                continue
-            sysinfo_file.write("  Total Size: " + bytes2human(partition_usage.total) + "\n")
-            sysinfo_file.write("  Used: " + bytes2human(partition_usage.used) + "\n")
-            sysinfo_file.write("  Free: " + bytes2human(partition_usage.free) + "\n")
-            sysinfo_file.write("  Percentage: " + str(partition_usage.percent) + "%\n")
+            partition_info = {
+                "mount": partition.mountpoint,
+                "total": bytes2human(psutil.disk_usage(partition.mountpoint).total),
+                "free": bytes2human(psutil.disk_usage(partition.mountpoint).free)
+            }
+            system_info["disk"]["partitions"].append(partition_info)
 
-    # Network information
-    sysinfo_file.write("="*40 + "Network Information" + "="*30 + '\n')
-    # get all network interfaces (virtual and physical)
+    # Network Information
+    system_info["network"]["interfaces"] = {}
     if_addrs = psutil.net_if_addrs()
     for interface_name, interface_addresses in if_addrs.items():
         for address in interface_addresses:
-            sysinfo_file.write("=== Interface: " + interface_name + "===\n")
             if str(address.family) == 'AddressFamily.AF_INET':
-                sysinfo_file.write("  IP Address: " + address.address + "\n")
-                sysinfo_file.write("  Netmask: " + address.netmask + "\n")
-                #sysinfo_file.write("  Broadcast IP: " + address.broadcast + "\n")
-            elif str(address.family) == 'AddressFamily.AF_PACKET':
-                sysinfo_file.write("  MAC Address: " + address.address + "\n")
-                #sysinfo_file.write("  Netmask: " + address.netmask + "\n")
-                #sysinfo_file.write("  Broadcast MAC: " + address.broadcast + "\n")
-    # get IO statistics since boot
+                system_info["network"]["interfaces"][interface_name] = {
+                    "ip": address.address,
+                    "mask": address.netmask
+                }
+
+    # Additional Network Information
     net_io = psutil.net_io_counters()
-    sysinfo_file.write("Total Bytes Sent: " + bytes2human(net_io.bytes_sent) + "\n")
-    sysinfo_file.write("Total Bytes Received: " + bytes2human(net_io.bytes_recv) + "\n")
-    sysinfo_file.close()
-    return sysinfo_tmp_file
+    system_info["network"]["total_bytes_sent"] = bytes2human(net_io.bytes_sent)
+    system_info["network"]["total_bytes_received"] = bytes2human(net_io.bytes_recv)
+
+    return system_info
 
 def upload_zip(aws_object_path, file_name):
     """
@@ -594,7 +598,7 @@ def query_yes_no(question, default="yes"):
     elif default == "no":
         prompt = " [y/N] "
     else:
-        raise ValueError("invalid default answer: '%s'" % default)
+        raise ValueError(f'invalid default answer: {default}%')
 
     while True:
         sys.stdout.write(question + prompt)
@@ -676,10 +680,10 @@ def main():
         email_address = args.email_address
 
     # create a info file
-    info_file_path, node_type = create_info_file(tmp_dir_path, email_address)
+    info_file_path, node_type = create_system_info_file(tmp_dir_path, email_address)
 
     # get system info
-    system_files = get_system_info(tmp_dir_path)
+    system_files = get_system_files(tmp_dir_path)
 
     # get ziti info
     ziti_files = get_ziti_info(tmp_dir_path)
@@ -718,7 +722,7 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.3.4'
+        __version__ = '1.4.0'
         # change log
         # https://github.com/netfoundry/edge-router-support-bundle/blob/main/CHANGELOG.md
 

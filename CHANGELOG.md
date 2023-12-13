@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2023-12-13
+### Changed
+
+- Removed sys_info file & merged it into the info_file in json format.
+- Added section to extract ziti router id from local certificate.
+
+
 ## [1.3.4] - 2023-11-13
 ### Changed
 
