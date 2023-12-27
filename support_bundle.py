@@ -399,10 +399,8 @@ def run_identify():
     for file in minion_files:
         if os.path.exists(file):
             host_id = extract_minion_id(file)
-
-    if host_id:
-        identity_info["host_id"] = host_id
-    else:
+            identity_info["host_id"] = host_id
+            break
         logging.debug("Minion file not found")
 
     # identify controller name or IP
@@ -431,11 +429,14 @@ def run_identify():
         logging.debug("Controller Config not found")
 
     # identity Router id from certificate
-    router_certificate = "/opt/netfoundry/ziti/ziti-router/certs/client.cert.pem"
-    if os.path.exists(router_certificate):
-        ziti_router_id = extract_common_name(router_certificate)
-        identity_info['ziti_router_id'] = ziti_router_id
-        logging.debug("ZitiRouterId: %s", ziti_router_id)
+    certificate_files =["/opt/netfoundry/ziti/ziti-router/certs/client.cert.pem",
+                        "/opt/netfoundry/ziti/ziti-router/certs/cert.pem"]
+
+    for certificate in certificate_files:
+        if os.path.exists(certificate):
+            ziti_router_id = extract_common_name(certificate)
+            identity_info['ziti_router_id'] = ziti_router_id
+            logging.debug("ZitiRouterId: %s", ziti_router_id)
 
     return identity_info
 
@@ -722,7 +723,7 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.4.0'
+        __version__ = '1.4.1'
         # change log
         # https://github.com/netfoundry/edge-router-support-bundle/blob/main/CHANGELOG.md
 
