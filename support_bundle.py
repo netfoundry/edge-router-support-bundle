@@ -698,10 +698,12 @@ def main():
                               system_files + ziti_files + info_file_path + ziti_dump_files)
 
     # prompt for upload
-    if not args.upload:
-        upload = query_yes_no("Would you like to upload this?")
-    else:
+    if args.upload:
         upload = True
+    elif args.no_upload:
+        upload = False
+    else:
+        upload = query_yes_no("Would you like to upload this?")
 
     # upload files to s3 or just place vile
     if upload:
@@ -723,7 +725,7 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.4.1'
+        __version__ = '1.4.2'
         # change log
         # https://github.com/netfoundry/edge-router-support-bundle/blob/main/CHANGELOG.md
 
@@ -737,9 +739,13 @@ if __name__ == '__main__':
         parser.add_argument('-n','--dump_count',
                             help='number of times to perform dumps',
                             default=1, type=int)
-        parser.add_argument('-u', '--upload',
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument('-u', '--upload',
                             action='store_true',
                             help='auto upload')
+        group.add_argument('-l', '--no_upload',
+                            action='store_true',
+                            help='do not upload')
         parser.add_argument('-d', '--debug',
                             action='store_true',
                             help='enable debug log in log file output')
