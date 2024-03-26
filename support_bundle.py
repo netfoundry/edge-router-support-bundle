@@ -311,7 +311,8 @@ def get_ziti_info(tmp_dir):
                         '/usr/lib/systemd/resolved.conf.d/01-netfoundry.conf',
                         '/usr/lib/systemd/resolved.conf.d/01-ziti.conf',
                         '/etc/salt/minion.d/nf-minion.conf',
-                        '/var/log/router_registration.log'
+                        '/var/log/router_registration.log',
+                        '/opt/openziti/bin/user/user_rules.sh'
                         ]
     for ziti_file in other_ziti_files:
         try:
@@ -467,9 +468,16 @@ def run_system_commands(output_dir):
                     ["systemctl", "status","salt-minion"],
                     ["systemctl", "status","ziti-router-upgrade"],
                     ["curl", "https://localhost/version", "--insecure"],
-                    ["curl", "https://localhost/health-checks", "--insecure"]
+                    ["curl", "https://localhost/health-checks", "--insecure"],
+                    ["ls", "/opt/openziti/bin/"],
+                    ["ls", "/opt/openziti/etc/"],
+                    ["zfw", "-L", "-i"],
+                    ["zfw", "-L", "-f"],
+                    ["zfw", "-L", "-E"]
                     ]
 
+    if os.path.isfile("/opt/openziti/bin/zfw"):
+        sys.path.append("/opt/openziti/bin")
     output_file_list = []
     for command in command_list:
         if isinstance(command,list):
@@ -725,7 +733,7 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.4.2'
+        __version__ = '1.4.3'
         # change log
         # https://github.com/netfoundry/edge-router-support-bundle/blob/main/CHANGELOG.md
 
