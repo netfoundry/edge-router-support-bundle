@@ -393,6 +393,7 @@ def run_identify():
 
     if "node_type" not in identity_info:
         logging.warning("Failed to identify node type")
+        identity_info["node_type"] = "unidentified"
 
     # identify host id
     minion_files = ['/etc/salt/minion.d/nf-minion.conf',
@@ -734,7 +735,7 @@ def main():
 # main
 if __name__ == '__main__':
     try:
-        __version__ = '1.4.4'
+        __version__ = '1.4.5'
         # change log
         # https://github.com/netfoundry/edge-router-support-bundle/blob/main/CHANGELOG.md
 
